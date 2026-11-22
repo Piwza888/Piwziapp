@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>อินเตอร์คอม พิว–ไอติม</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin:0; font-family: -apple-system, "Segoe UI", Roboto, "Noto Sans Thai", sans-serif;
+    background:#0f1115; color:#e8eaed; min-height:100vh;
+    display:flex; flex-direction:column; align-items:center; padding:22px 18px 40px;
+  }
+  h1 { font-size:22px; margin:6px 0 4px; }
+  .sub { color:#9aa0a6; font-size:13px; text-align:center; margin-bottom:20px; line-height:1.6;}
+  .card { width:100%; max-width:440px; background:#171a21; border:1px solid #262b35; border-radius:18px; padding:20px; }
+  label { display:block; font-size:13px; color:#9aa0a6; margin:6px 0 6px; }
+  input {
+    width:100%; padding:14px 16px; font-size:17px; border-radius:12px;
+    border:1px solid #2c323d; background:#0f1115; color:#fff; outline:none;
+  }
+  input:focus { border-color:#4c8bf5; }
+  button {
+    width:100%; padding:16px; font-size:17px; font-weight:600; border:none;
+    border-radius:14px; cursor:pointer; margin-top:14px; color:#fff;
+    background:#4c8bf5; transition:transform .05s ease;
+  }
+  button:active { transform:scale(.98); }
+  button.lock { background:#262b35; color:#ffd27f; }
+  button.lock.active { background:#4a3a12; color:#ffd27f; }
+  button.danger { background:#3a2326; color:#ff8a8a; }
+  .hidden { display:none !important; }
+
+  .alert {
+    width:100%; max-width:440px; margin-bottom:14px; border-radius:14px; padding:16px;
+    text-align:center; font-size:16px; font-weight:700; background:#3a1416; border:2px solid #ff4d4d; color:#fff;
+    animation:glow 1.1s infinite;
+  }
+  .alert small{ display:block; font-weight:400; font-size:12px; color:#ffd0d0; margin-top:4px;}
+  @keyframes glow { 0%{box-shadow:0 0 0 0 rgba(255,77,77,.5);} 70%{box-shadow:0 0 0 16px rgba(255,77,77,0);} 100%{box-shadow:0 0 0 0 rgba(255,77,77,0);} }
+
+  .status { display:flex; gap:10px; margin-bottom:16px; }
+  .pill { flex:1; background:#0f1115; border:1px solid #262b35; border-radius:12px; padding:12px 8px; text-align:center; }
+  .pill .lbl { color:#9aa0a6; font-size:11px; display:block; margin-bottom:6px;}
+  .pill .val { font-size:14px; font-weight:600; }
+  .pill.on { border-color:#35d07f; } .pill.on .val{ color:#7ff0a8; }
+  .pill.red { border-color:#ff4d4d; } .pill.red .val{ color:#ff8a8a; }
+
+  .listen {
+    width:100%; aspect-ratio:3/2; max-height:210px; border-radius:24px; margin-top:4px;
+    font-size:21px; font-weight:700; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;
+    background:#1d2733; border:2px solid #2c323d; color:#cfe0ff;
+  }
+  .listen small{ font-weight:400; font-size:13px; color:#9aa0a6;}
+  .listen.live { background:#12261b; border-color:#35d07f; color:#eafff2; }
+  .listen.live small{ color:#9bf0bf;}
+
+  .note { font-size:12px; color:#777d87; line-height:1.7; margin-top:16px; }
+</style>
+</head>
+<body>
+  <h1>📻 อินเตอร์คอม</h1>
+  <div class="sub">เปิดลิงก์นี้ทั้งสองเครื่อง ใส่รหัสห้องเดียวกัน<br>กดปุ่มเพื่อฟังอีกฝั่ง — ฝั่งที่ถูกฟังจะรู้ตัวทุกครั้ง</div>
+
+  <div class="alert hidden" id="beingHeard">🔴 อีกฝั่งกำลังฟังเสียงคุณอยู่<small>ไม่อยากให้ฟังตอนนี้ กดปุ่ม “ล็อกไมค์” ด้านล่าง</small></div>
+
+  <div class="card" id="joinCard">
+    <label>รหัสห้อง (ตั้งอะไรก็ได้ ขอให้ตรงกันทั้งสองเครื่อง และเดายาก ๆ)</label>
+    <input id="room" placeholder="เช่น piw-tim-x7k2" autocomplete="off">
+    <button id="connectBtn">เชื่อมต่อ</button>
+    <div class="note">เครื่องแรกที่กดคือ “เจ้าของห้อง” เครื่องที่สองเข้ามาหาเอง • ตอนกดครั้งแรก มือถือจะถามขออนุญาตไมค์ ให้กด “อนุญาต”</div>
+  </div>
+
+  <div class="card hidden" id="callCard">
+    <div class="status">
+      <div class="pill" id="pillMe"><span class="lbl">คุณกำลังฟังอีกฝั่ง</span><span class="val" id="meTxt">ปิด</span></div>
+      <div class="pill" id="pillYou"><span class="lbl">อีกฝั่งฟังคุณ</span><span class="val" id="youTxt">ปิด</span></div>
+    </div>
+
+    <button class="listen" id="listenBtn">
+      <span id="lMain">🎧 แตะเพื่อฟังอีกฝั่ง</span>
+      <small id="lSub">แตะแล้วจะได้ยินเสียงอีกเครื่อง</small>
+    </button>
+
+    <button class="lock" id="lockBtn">🔒 ล็อกไมค์ฉัน (ไม่ให้ใครฟัง)</button>
+    <button class="danger" id="hangBtn">ตัดการเชื่อมต่อ / ปิดไมค์จริง</button>
+    <div class="note" id="connNote">สถานะ: กำลังเชื่อม…</div>
+  </div>
+
+  <audio id="remoteAudio" autoplay playsinline></audio>
+
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <script>
+  (function(){
+    const $ = id => document.getElementById(id);
+    let peer, dataConn, mediaCall, localStream, localTrack;
+    let iAmListening=false, beingHeard=false, micLocked=false, audioCtx;
+
+    function prefixId(code){
+      return 'piwzi-intercom-v2-' + code.trim().toLowerCase().replace(/[^a-z0-9\-]/g,'');
+    }
+    function beep(){
+      try{
+        if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+        if(audioCtx.state==='suspended') audioCtx.resume();
+        const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+        o.frequency.value=880; o.connect(g); g.connect(audioCtx.destination);
+        g.gain.setValueAtTime(0.0001,audioCtx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.25,audioCtx.currentTime+0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001,audioCtx.currentTime+0.25);
+        o.start(); o.stop(audioCtx.currentTime+0.26);
+      }catch(e){}
+    }
+
+    $('connectBtn').onclick = async () => {
+      const code = $('room').value;
+      if(!code.trim()){ alert('ใส่รหัสห้องก่อนนะ'); return; }
+      try { localStream = await navigator.mediaDevices.getUserMedia({audio:true, video:false}); }
+      catch(e){ alert('เปิดไมค์ไม่ได้ ต้องกด “อนุญาต” ให้หน้านี้ใช้ไมค์ก่อน'); return; }
+      localTrack = localStream.getAudioTracks()[0];
+      localTrack.enabled = false;
+      try{ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){}
+
+      $('joinCard').classList.add('hidden');
+      $('callCard').classList.remove('hidden');
+
+      const hostId = prefixId(code);
+      peer = new Peer(hostId);
+      peer.on('open', () => { setNote('เป็นเจ้าของห้อง — รออีกเครื่องเข้ามา'); setupHost(); });
+      peer.on('error', (err) => {
+        if(err.type==='unavailable-id'){ becomeGuest(hostId); }
+        else { setNote('มีปัญหา: ' + err.type); }
+      });
+    };
+
+    function setupHost(){
+      peer.on('connection', c => { dataConn=c; wireData(); });
+      peer.on('call', call => {
+        mediaCall=call; call.answer(localStream);
+        call.on('stream', playRemote); call.on('close', onGone);
+      });
+    }
+    function becomeGuest(hostId){
+      peer = new Peer();
+      peer.on('open', () => {
+        setNote('เข้าห้องแล้ว — กำลังต่อสาย');
+        dataConn = peer.connect(hostId); wireData();
+        mediaCall = peer.call(hostId, localStream);
+        mediaCall.on('stream', playRemote); mediaCall.on('close', onGone);
+      });
+      peer.on('error', err => setNote('ต่อไม่ติด: ' + err.type));
+    }
+
+    function wireData(){
+      dataConn.on('open', () => setNote('เชื่อมต่อสำเร็จ ✓ — กดปุ่มเขียวเพื่อฟังอีกฝั่ง'));
+      dataConn.on('data', d => {
+        if(!d) return;
+        if(d.type==='listen'){        // อีกฝั่งสั่งเปิด/ปิดไมค์ของเรา
+          if(d.on && !micLocked){ localTrack.enabled=true; setBeingHeard(true); }
+          else { localTrack.enabled=false; setBeingHeard(false); }
+        }
+      });
+      dataConn.on('close', onGone);
+    }
+    function playRemote(stream){ const a=$('remoteAudio'); a.srcObject=stream; a.play().catch(()=>{}); }
+
+    $('listenBtn').onclick = () => {
+      iAmListening = !iAmListening;
+      send({type:'listen', on:iAmListening});
+      $('listenBtn').classList.toggle('live', iAmListening);
+      $('lMain').textContent = iAmListening ? '🔊 กำลังฟังอีกฝั่งอยู่' : '🎧 แตะเพื่อฟังอีกฝั่ง';
+      $('lSub').textContent = iAmListening ? 'แตะอีกครั้งเพื่อหยุดฟัง' : 'แตะแล้วจะได้ยินเสียงอีกเครื่อง';
+      $('pillMe').classList.toggle('on', iAmListening);
+      $('meTxt').textContent = iAmListening ? 'เปิด' : 'ปิด';
+    };
+
+    $('lockBtn').onclick = () => {
+      micLocked = !micLocked;
+      $('lockBtn').classList.toggle('active', micLocked);
+      $('lockBtn').textContent = micLocked ? '🔓 ปลดล็อกไมค์ (ให้ฟังได้)' : '🔒 ล็อกไมค์ฉัน (ไม่ให้ใครฟัง)';
+      if(micLocked){ localTrack.enabled=false; setBeingHeard(false); }
+    };
+
+    function setBeingHeard(on){
+      beingHeard=on;
+      $('beingHeard').classList.toggle('hidden', !on);
+      $('pillYou').classList.toggle('red', on);
+      $('youTxt').textContent = on ? 'กำลังฟัง!' : 'ปิด';
+      if(on) beep();
+    }
+    function send(m){ if(dataConn && dataConn.open){ try{ dataConn.send(m); }catch(e){} } }
+    function setNote(t){ $('connNote').textContent = 'สถานะ: ' + t; }
+    function onGone(){ setNote('อีกฝั่งหลุดไปแล้ว — ลองกดเชื่อมใหม่'); setBeingHeard(false); }
+
+    $('hangBtn').onclick = () => {
+      send({type:'listen', on:false});
+      if(localStream) localStream.getTracks().forEach(t=>t.stop());
+      try{ if(mediaCall) mediaCall.close(); }catch(e){}
+      try{ if(dataConn) dataConn.close(); }catch(e){}
+      try{ if(peer) peer.destroy(); }catch(e){}
+      iAmListening=false; micLocked=false;
+      $('callCard').classList.add('hidden'); $('joinCard').classList.remove('hidden');
+      $('listenBtn').classList.remove('live'); $('lMain').textContent='🎧 แตะเพื่อฟังอีกฝั่ง';
+      $('lSub').textContent='แตะแล้วจะได้ยินเสียงอีกเครื่อง';
+      $('pillMe').classList.remove('on'); $('meTxt').textContent='ปิด';
+      $('lockBtn').classList.remove('active'); $('lockBtn').textContent='🔒 ล็อกไมค์ฉัน (ไม่ให้ใครฟัง)';
+      setBeingHeard(false);
+    };
+  })();
+  </script>
+</body>
+</html>
